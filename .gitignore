@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+build/
+.env
+.env*.local
+qa-dashboard-*.png
+.DS_Store
+tmp/
+tsconfig.tsbuildinfo
+01_src/ID_PW.txt

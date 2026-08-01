@@ -1,0 +1,381 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ErpRole {
+  master
+  submaster
+  user
+}
+
+enum AccountStatus {
+  pending
+  approved
+  rejected
+  inactive
+  blocked
+}
+
+enum DocumentType {
+  OFFICIAL
+  MEETING
+  PRESS
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String?       @unique
+  emailVerified DateTime?
+  image         String?
+  loginId       String        @unique
+  phone         String?
+  passwordHash  String?
+  role          ErpRole       @default(user)
+  branchId      String?
+  requestedRole ErpRole       @default(user)
+  accountStatus AccountStatus @default(pending)
+  positionTitle String?
+  organizationName String?
+  requestReason String?
+  privacyConsent Boolean      @default(false)
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectedReason String?
+  lastLoginAt   DateTime?
+  lastActivityAt DateTime?
+  failedLoginCount Int        @default(0)
+  lockedUntil   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  accounts             Account[]
+  sessions             Session[]
+  dashboardAiSummaries DashboardAiSummary[]
+  branch               Branch? @relation(fields: [branchId], references: [id])
+  approvedBy           User?   @relation("UserApprovals", fields: [approvedById], references: [id])
+  approvedUsers        User[]  @relation("UserApprovals")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Branch {
+  id            String    @id
+  name          String
+  status        String    @default("운영")
+  chairName     String?
+  memberCount   Int       @default(0)
+  pharmacyCount Int       @default(0)
+  fields        Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  members    Member[]
+  pharmacies Pharmacy[]
+  dues       Due[]
+  payments   Payment[]
+  tickets    Ticket[]
+  users      User[]
+}
+
+model Member {
+  id         String    @id @default(cuid())
+  name       String
+  licenseNo  String?
+  status     String    @default("정상")
+  memberType String?
+  phone      String?
+  email      String?
+  joinedAt   DateTime?
+  branchId   String?
+  pharmacyId String?
+  owner      String?
+  fields     Json      @default("{}")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  branch   Branch?   @relation(fields: [branchId], references: [id])
+  pharmacy Pharmacy? @relation(fields: [pharmacyId], references: [id])
+  dues     Due[]
+}
+
+model Pharmacy {
+  id           String    @id @default(cuid())
+  name         String
+  address      String?
+  status       String    @default("운영")
+  pharmacyType String?
+  ownerName    String?
+  phone        String?
+  openedAt     DateTime?
+  postalCode   String?
+  branchId     String?
+  fields       Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  branch  Branch?  @relation(fields: [branchId], references: [id])
+  members Member[]
+}
+
+model CommitteeMember {
+  id            String    @id @default(cuid())
+  name          String
+  status        String    @default("임기중")
+  committeeType String?
+  position      String?
+  committee     String?
+  term          String?
+  contact       String?
+  owner         String?
+  fields        Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+}
+
+model Due {
+  id         String    @id @default(cuid())
+  memberId   String?
+  branchId   String?
+  title      String
+  status     String    @default("미납")
+  dueType    String?
+  year       Int
+  amountDue  Int       @default(0)
+  amountPaid Int       @default(0)
+  paidAt     DateTime?
+  owner      String?
+  fields     Json      @default("{}")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  member      Member?             @relation(fields: [memberId], references: [id])
+  branch      Branch?             @relation(fields: [branchId], references: [id])
+  allocations PaymentAllocation[]
+}
+
+model Payment {
+  id        String    @id @default(cuid())
+  branchId  String?
+  title     String
+  status    String    @default("미매칭")
+  depositor String?
+  account   String?
+  amount    Int       @default(0)
+  paidAt    DateTime?
+  owner     String?
+  fields    Json      @default("{}")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  branch      Branch?             @relation(fields: [branchId], references: [id])
+  allocations PaymentAllocation[]
+}
+
+model PaymentAllocation {
+  id        String   @id @default(cuid())
+  paymentId String
+  dueId     String
+  amount    Int
+  createdAt DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+  due     Due     @relation(fields: [dueId], references: [id])
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  documentNo   String?
+  documentType DocumentType
+  title        String
+  subtitle     String?
+  status       String       @default("작성중")
+  category     String?
+  owner        String?
+  documentDate DateTime?
+  fields       Json         @default("{}")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  approvals Approval[]
+}
+
+model Approval {
+  id           String    @id @default(cuid())
+  documentId   String?
+  title        String
+  status       String    @default("대기")
+  approvalType String?
+  owner        String?
+  requester    String?
+  comments     String?
+  fields       Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  document Document?      @relation(fields: [documentId], references: [id])
+  steps    ApprovalStep[]
+}
+
+model ApprovalStep {
+  id         String    @id @default(cuid())
+  approvalId String
+  stepOrder  Int
+  approver   String
+  status     String    @default("대기")
+  actedAt    DateTime?
+  comment    String?
+
+  approval Approval @relation(fields: [approvalId], references: [id])
+}
+
+model Ticket {
+  id         String    @id @default(cuid())
+  branchId   String?
+  title      String
+  subtitle   String?
+  status     String    @default("접수")
+  ticketType String?
+  requester  String?
+  priority   String?
+  owner      String?
+  dueDate    DateTime?
+  fields     Json      @default("{}")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  branch Branch? @relation(fields: [branchId], references: [id])
+}
+
+model Event {
+  id        String    @id @default(cuid())
+  title     String
+  subtitle  String?
+  status    String    @default("예정")
+  eventType String?
+  owner     String?
+  startsAt  DateTime?
+  place     String?
+  fields    Json      @default("{}")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  attendees EventAttendee[]
+}
+
+model EventAttendee {
+  id        String   @id @default(cuid())
+  eventId   String
+  memberId  String?
+  name      String
+  status    String   @default("초대")
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id])
+}
+
+model Setting {
+  id          String    @id @default(cuid())
+  title       String
+  subtitle    String?
+  status      String    @default("활성")
+  settingType String?
+  owner       String?
+  fields      Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?
+  actorRole  ErpRole?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  metadata   Json     @default("{}")
+  ip         String?
+  createdAt  DateTime @default(now())
+}
+
+model DashboardAiSummary {
+  id             String   @id @default(cuid())
+  period         String
+  startDate      DateTime
+  endDate        DateTime
+  model          String
+  payloadHash    String
+  sections       Json
+  rawText        String
+  sourceSnapshot Json
+  status         String   @default("SUCCESS")
+  errorMessage   String?
+  generatedById  String?
+  generatedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  generatedBy User? @relation(fields: [generatedById], references: [id])
+
+  @@index([period, startDate, endDate, payloadHash])
+  @@index([generatedAt])
+}
