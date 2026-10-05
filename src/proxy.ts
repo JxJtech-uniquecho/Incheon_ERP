@@ -7,7 +7,7 @@ function hasSessionCookie(request: NextRequest) {
   return Boolean(request.cookies.get("next-auth.session-token") || request.cookies.get("__Secure-next-auth.session-token"));
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname.startsWith("/api")) return NextResponse.next();
 

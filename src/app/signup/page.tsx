@@ -23,7 +23,7 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    void fetch("/api/branches?pageSize=100", { cache: "no-store" })
+    void fetch("/api/auth/branches", { cache: "no-store" })
       .then((response) => response.json())
       .then((payload: { items?: BranchOption[] }) => setBranches(payload.items ?? []))
       .catch(() => setBranches([]));
@@ -35,7 +35,8 @@ export default function SignupPage() {
     setMessage("");
     setIsSubmitting(true);
 
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
 
     try {
@@ -49,7 +50,7 @@ export default function SignupPage() {
       });
       const body = (await response.json().catch(() => ({}))) as { message?: string };
       if (!response.ok) throw new Error(body.message ?? "회원가입 신청에 실패했습니다.");
-      event.currentTarget.reset();
+      form.reset();
       setMessage(body.message ?? "회원가입 신청이 접수되었습니다.");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "회원가입 신청에 실패했습니다.");

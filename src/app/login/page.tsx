@@ -3,10 +3,10 @@ import { LoginForm } from "./LoginForm";
 import { LOGIN_RETURN_TO_COOKIE, sanitizeLoginReturnTo } from "@/lib/login-return";
 
 type LoginPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     callbackUrl?: string | string[];
     reason?: string | string[];
-  };
+  }>;
 };
 
 function firstSearchParam(value: string | string[] | undefined) {
@@ -16,8 +16,9 @@ function firstSearchParam(value: string | string[] | undefined) {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const cookieStore = await cookies();
-  const callbackUrlQuery = firstSearchParam(searchParams?.callbackUrl);
-  const reason = firstSearchParam(searchParams?.reason);
+  const params = await searchParams;
+  const callbackUrlQuery = firstSearchParam(params?.callbackUrl);
+  const reason = firstSearchParam(params?.reason);
   const callbackUrlCookie = cookieStore.get(LOGIN_RETURN_TO_COOKIE)?.value ?? "";
   const initialCallbackUrl = sanitizeLoginReturnTo(callbackUrlQuery || callbackUrlCookie);
 

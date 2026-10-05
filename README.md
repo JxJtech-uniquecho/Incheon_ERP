@@ -70,24 +70,52 @@ AUTH_SECRET="replace-with-a-long-random-secret-before-production"
 AUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="replace-with-a-long-random-secret-before-production"
 NEXTAUTH_URL="http://localhost:3000"
-MISTRAL_API_KEY="replace-with-your-mistral-api-key"
+MISTRAL_API_KEY=""
 ```
 
-### 3. Prisma 초기화
+인증 비밀값 두 개에는 동일한 임의 문자열을 설정합니다. `openssl rand -hex 32`로 생성할 수 있습니다.
+`MISTRAL_API_KEY`는 AI 요약 생성에만 필요하며, 비워 두어도 로그인과 ERP 데이터 기능은 사용할 수 있습니다.
+AI 요약에서 요청 한도 초과 안내가 나오면 Mistral 계정의 사용 한도를 확인하거나 잠시 후 재시도합니다.
+`.env`는 Git에 포함되지 않습니다.
+
+### 3. PostgreSQL 실행
+
+현재 Mac에는 Homebrew PostgreSQL 16과 `inpharmy_erp` DB가 구성되어 있습니다.
+DB는 Mac 로그인 시 자동 실행됩니다. 수동 시작/상태 확인:
+
+```bash
+brew services start postgresql@16
+brew services list
+```
+
+새 환경에서 Docker를 사용하는 경우에는 대신 저장소의 Compose 설정을 실행합니다.
+두 방식 모두 기본 포트 5432를 사용하므로 하나만 실행하세요.
+
+```bash
+docker compose up -d postgres
+```
+
+### 4. Prisma 초기화
 
 ```bash
 npm run prisma:generate
-npm run prisma:migrate
+npm run prisma:deploy
 npm run prisma:seed
 ```
 
-### 4. 개발 서버 실행
+기존 마이그레이션을 적용할 때는 `prisma:deploy`를 사용합니다.
+`prisma:migrate`는 스키마 변경으로 새 마이그레이션을 만들 때 사용합니다.
+시드는 초기 로컬 테스트용이며, 다시 실행하면 관리자 비밀번호와 샘플 데이터가 초기값으로 갱신됩니다.
+
+### 5. 개발 서버 실행
 
 ```bash
-npm run dev
+npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
 브라우저에서 `http://localhost:3000`을 열면 로그인 화면으로 진입합니다.
+프론트엔드와 `/api/*` 백엔드는 같은 Next.js 서버에서 실행되므로 별도의 백엔드 서버 명령은 필요하지 않습니다.
+웹 서버를 종료하거나 Mac을 재시작한 경우 위 명령으로 다시 실행합니다.
 
 ## 기본 계정
 
@@ -106,6 +134,7 @@ seed 기준 초기 관리자 계정:
 - `npm run lint` - ESLint 검사
 - `npm run prisma:generate` - Prisma Client 생성
 - `npm run prisma:migrate` - 마이그레이션 실행
+- `npm run prisma:deploy` - 기존 마이그레이션 적용
 - `npm run prisma:seed` - 시드 데이터 적재
 
 ## 접근 흐름
